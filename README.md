@@ -52,46 +52,86 @@ The invoice processing pipeline runs sequentially through the following modules:
 
 ---
 
-## Quick Start
+## Setup and Installation
 
-### Prerequisites
+Follow these steps to set up the invoice parser locally or deploy it to a hosting server.
+
+### 1. Prerequisites (System Libraries)
+
+Since the pipeline uses Tesseract for scanned PDF OCR, you need to install the Tesseract system binary.
+
+* **macOS** (using Homebrew):
+  ```bash
+  brew install tesseract
+  ```
+* **Ubuntu/Debian**:
+  ```bash
+  sudo apt update
+  sudo apt install tesseract-ocr libtesseract-dev
+  ```
+* **Windows**:
+  Download and install the Tesseract installer from the [UB Mannheim project](https://github.com/UB-Mannheim/tesseract/wiki), and add the installation folder to your Windows System PATH.
+
+### 2. Local Installation
+
+Clone the repository and install the Python dependencies:
+
 ```bash
-# Install Tesseract OCR (required for scanned PDFs)
-brew install tesseract          # macOS
-sudo apt install tesseract-ocr  # Ubuntu/Debian
-```
+git clone https://github.com/Punya23/AI_Invoice_Parser.git
+cd AI_Invoice_Parser
 
-### Installation
-```bash
-git clone https://github.com/YOUR_USERNAME/accuron-invoice-parser.git
-cd accuron-invoice-parser
+# Set up a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate    # Mac/Linux
-# venv\Scripts\activate     # Windows
-
-# Install dependencies
+# Install requirements
 pip install -r requirements.txt
 ```
 
-### CLI Usage
-```bash
-# Process all PDFs in a directory
-python main.py --input Document/ --output output/result.xlsx
+### 3. Running the Streamlit Web Interface
 
-# Process a single PDF
-python main.py --input Document/invoice.pdf --output output/result.xlsx
+To launch the web dashboard locally:
 
-# Skip Journal Entry format sheet
-python main.py --input Document/ --output output/result.xlsx --no-journal
-```
-
-### Streamlit Web UI
 ```bash
 streamlit run app.py
 ```
-Then open http://localhost:8501 in your browser.
+
+Once running, open your browser to `http://localhost:8501`. 
+
+* **Configuring Vision AI (Optional)**: If you wish to use Google Gemini Multimodal parsing, enter your Gemini API Key in the sidebar input box of the web app, or set the environment variable:
+  ```bash
+  export GEMINI_API_KEY="your-api-key"
+  ```
+  If no key is configured, the app will automatically fall back to the offline local parser.
+
+### 4. Running the CLI Orchestrator
+
+To parse documents from the command line:
+
+```bash
+# Parse a single file
+python main.py --input path/to/invoice.pdf --output output/result.xlsx
+
+# Parse a directory of files
+python main.py --input path/to/invoices_folder/ --output output/result.xlsx
+
+# Parse files while skipping the ERP journal sheets
+python main.py --input path/to/invoice.pdf --output output/result.xlsx --no-journal
+```
+
+### 5. Deployment to Streamlit Community Cloud
+
+The codebase is fully structured to deploy directly to Streamlit Community Cloud:
+
+1. Push your repository to your GitHub account.
+2. Visit [share.streamlit.io](https://share.streamlit.io/) and log in with GitHub.
+3. Click **New app** and choose the `AI_Invoice_Parser` repository.
+4. Set the **Main file path** to `app.py` and choose **Python 3.12** or the default version.
+5. In **Advanced Settings**, add your API key under Secrets:
+   ```toml
+   GEMINI_API_KEY = "your-api-key-here"
+   ```
+6. Click **Deploy**. The server will automatically read `packages.txt` to install the Tesseract system binaries and `requirements.txt` to install Python packages.
 
 ---
 

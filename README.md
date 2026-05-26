@@ -1,30 +1,21 @@
-# 📄 Accuron AI — Invoice Parser POC
+# Accuron AI — Invoice Parser POC
 
-> **Automated Invoice PDF → Structured Excel pipeline**  
+> **Automated Invoice PDF to Structured Excel pipeline**  
 > Handles both **digital** and **scanned** PDFs with deterministic regex-based extraction
-
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
-## 🎯 What It Does
+## What It Does
 
 Processes invoice PDFs and extracts structured data into a multi-sheet Excel workbook:
 
-```mermaid
-graph TD
-    In["📄 Input: Invoice PDFs (Digital / Scanned)"] --> Pipeline["⚙️ Accuron AI Pipeline (Classify ➔ Parse ➔ Validate)"]
-    Pipeline --> Out["📊 Output: Multi-Sheet Excel Workbook (.xlsx)"]
-    
-    subgraph Generated Worksheets
-        Out --> S1["📊 Summary Dashboard"]
-        Out --> S2["📄 Individual Invoice Details"]
-        Out --> S3["📋 details to be captured (ERP Guide)"]
-        Out --> S4["📒 upload format (ERP Journal Entry)"]
-    end
-```
-
+### Workflow Summary
+1. **Input**: Digital or scanned invoice PDF files.
+2. **Output**: Multi-sheet Excel workbook (.xlsx) containing:
+   * **Summary Dashboard**: Overview metrics for all processed files.
+   * **Individual Invoice Details**: Tabular detail reviews for each document.
+   * **details to be captured (ERP Guide)**: Accuron column reference rules.
+   * **upload format (ERP Journal Entry)**: Balanced double-entry 56-column journal ledger.
 
 ### Fields Extracted
 - Invoice Number, Date, Due Date
@@ -37,16 +28,16 @@ graph TD
 
 ---
 
-## 🏗️ Architecture
+## Pipeline Architecture
 
-```mermaid
-graph LR
-    A["📄 PDF Input"] --> B["🔍 Classifier<br>(Digital / Scanned)"]
-    B --> C["⚡ Extractor<br>(pdfplumber / OCR)"]
-    C --> D["🧠 Parser<br>(Heuristics / Vision AI)"]
-    D --> E["✅ Validator<br>(GSTIN & Math Check)"]
-    E --> F["📊 Excel Generator<br>(openpyxl Output)"]
-```
+The invoice processing pipeline runs sequentially through the following modules:
+
+1. **PDF Input**: Receives incoming digital or scanned document uploads.
+2. **Classifier**: Checks for native text layers to decide the parsing route.
+3. **Extractor**: Extracts raw text and table contents using pdfplumber (for digital text) or Tesseract OCR (for scanned pages).
+4. **Parser**: Translates extracted text to structures via regex heuristics or Google Gemini Vision AI.
+5. **Validator**: Runs GSTIN format checks and mathematical balancing tests.
+6. **Excel Generator**: Writes a professionally styled, multi-sheet workbook using openpyxl.
 
 ### Design Decisions
 
@@ -61,7 +52,7 @@ graph LR
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 ```bash
@@ -104,7 +95,7 @@ Then open http://localhost:8501 in your browser.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 accuron-invoice-parser/
@@ -128,7 +119,7 @@ accuron-invoice-parser/
 
 ---
 
-## 🔍 Technical Details
+## Technical Details
 
 ### PDF Classification
 Every PDF is classified before processing:
@@ -162,28 +153,28 @@ Currently uses **Tesseract** for basic scanned text, and **Gemini 1.5 Flash Visi
 
 ---
 
-## 📊 Test Results
+## Test Results
 
 Tested against 12 Accuron invoices (5 digital + 7 scanned):
 
 | Invoice | Type | Invoice # | Date | Total | Status |
 |---|---|---|---|---|---|
-| AWS IT | Digital | AIN2526001124876 | 02/07/2025 | ₹27,12,845.83 | ✅ |
-| CIEL HR | Digital | IHR030932627 | 28/04/2026 | ₹12,90,543.66 | ✅ |
-| INUBE IT | Digital | 25-26/463 | 11/02/2026 | ₹21,24,000.00 | ✅ |
-| Green Clean | Digital | GC/26-27/251 | 17/04/2026 | ₹1,83,900.00 | ✅ |
-| Vault Infosec | Digital | VIIPL-2627-002 | 02/04/2026 | ₹1,77,000.00 | ✅ |
-| Tata Power | Scanned (OCR) | Extracted | Extracted | Extracted | ⚠️ |
-| OEC Records | Scanned (OCR) | Extracted | Extracted | ₹1,44,356.71 | ⚠️ |
-| Professional Couriers | Scanned (OCR) | MAA30080062 | Extracted | ₹974.32 | ✅ |
-| Casa 2 Stays | Scanned (OCR) | BR/2526/01744 | Extracted | Extracted | ⚠️ |
-| Saanvi Trading | Scanned (OCR) | ST/25-26/001 | Extracted | Extracted | ✅ |
+| AWS IT | Digital | AIN2526001124876 | 02/07/2025 | ₹27,12,845.83 | Pass |
+| CIEL HR | Digital | IHR030932627 | 28/04/2026 | ₹12,90,543.66 | Pass |
+| INUBE IT | Digital | 25-26/463 | 11/02/2026 | ₹21,24,000.00 | Pass |
+| Green Clean | Digital | GC/26-27/251 | 17/04/2026 | ₹1,83,900.00 | Pass |
+| Vault Infosec | Digital | VIIPL-2627-002 | 02/04/2026 | ₹1,77,000.00 | Pass |
+| Tata Power | Scanned (OCR) | Extracted | Extracted | Extracted | Warning |
+| OEC Records | Scanned (OCR) | Extracted | Extracted | ₹1,44,356.71 | Warning |
+| Professional Couriers | Scanned (OCR) | MAA30080062 | Extracted | ₹974.32 | Pass |
+| Casa 2 Stays | Scanned (OCR) | BR/2526/01744 | Extracted | Extracted | Warning |
+| Saanvi Trading | Scanned (OCR) | ST/25-26/001 | Extracted | Extracted | Pass |
 
-*⚠️ = Partially extracted — OCR accuracy varies with scan quality*
+*Warning = Partially extracted (OCR accuracy varies with scan quality)*
 
 ---
 
-## 🧪 Dependencies
+## Dependencies
 
 | Package | Version | Purpose | Size |
 |---|---|---|---|
@@ -201,7 +192,7 @@ System requirement: `tesseract` binary (`brew install tesseract`)
 
 ---
 
-## 📈 Production Scaling Notes
+## Production Scaling Notes
 
 This is a POC. For production deployment:
 
@@ -214,11 +205,11 @@ This is a POC. For production deployment:
 
 ---
 
-## 👤 Author
+## Author
 
 **Punya Surana**  
 Built for Accuron AI Technologies Pvt Ltd — Internship Assignment
 
 ---
 
-*Built with ❤️ using Python and state-of-the-art Hybrid Extraction Pipelines*
+*Built using Python and custom Hybrid Extraction Pipelines*

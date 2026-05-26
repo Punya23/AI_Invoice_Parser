@@ -90,9 +90,15 @@ st.markdown("""
         box-shadow: none !important;
         transition: all 0.2s ease !important;
     }
+    .stDownloadButton > button *, .stButton > button * {
+        color: #ffffff !important; /* Force white text for all child elements */
+    }
     .stDownloadButton > button:hover, .stButton > button:hover {
         background: #374151 !important; /* Dark gray */
         border: 1px solid #374151 !important;
+    }
+    .stDownloadButton > button:hover *, .stButton > button:hover * {
+        color: #ffffff !important;
     }
     
     /* Expanders & Containers */

@@ -127,5 +127,31 @@ def extract_tables_from_image(img: Image.Image) -> list[list[list[str]]]:
             
         table_data.append(row_data)
 
-    logger.debug(f"CV Extracted Table: {len(table_data)} rows, ~{len(table_data[0]) if table_data else 0} cols")
+    # 6. Quality Gate: reject tables where most cells are empty
+    #    (borders detected but per-cell OCR produced nothing — common on noisy scans)
+    total_cells = sum(len(row) for row in table_data)
+    non_empty_cells = sum(1 for row in table_data for cell in row if cell.strip())
+    fill_ratio = non_empty_cells / total_cells if total_cells > 0 else 0
+
+    if fill_ratio < 0.15:
+        logger.debug(f"CV table rejected: {fill_ratio:.0%} fill rate ({non_empty_cells}/{total_cells} non-empty cells)")
+        return []
+
+    # Also reject tables with no recognizable header row
+    header_keywords = {'description', 'particulars', 'qty', 'quantity', 'rate',
+                       'amount', 'hsn', 'sac', 'item', 'sl', 'sr', 'total', 'unit', 'price'}
+    has_header = False
+    for row in table_data[:5]:  # Check first 5 rows for a header
+        row_text = " ".join(cell.lower() for cell in row if cell)
+        matches = sum(1 for kw in header_keywords if kw in row_text)
+        if matches >= 2:
+            has_header = True
+            break
+
+    if not has_header:
+        logger.debug(f"CV table rejected: no recognizable header row found")
+        return []
+
+    logger.debug(f"CV Extracted Table: {len(table_data)} rows, ~{len(table_data[0]) if table_data else 0} cols, fill={fill_ratio:.0%}")
     return [table_data]
+

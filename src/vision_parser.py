@@ -103,7 +103,7 @@ def _pdf_to_images_b64(pdf_path: str, dpi: int = 200) -> list[str]:
     return images
 
 
-def parse_invoice_with_vision(pdf_path: str, extracted_text: str, api_key: str) -> Optional[Invoice]:
+def parse_invoice_with_vision(pdf_path: str, extracted_text: str, api_key: str, pdf_type: PDFType = PDFType.DIGITAL) -> Optional[Invoice]:
     """
     Parse an invoice using Gemini Multimodal Vision API.
     
@@ -173,7 +173,7 @@ def parse_invoice_with_vision(pdf_path: str, extracted_text: str, api_key: str) 
         extracted_data = json.loads(raw_output)
         
         # Map JSON dictionary to our models
-        return _map_json_to_invoice(extracted_data, os.path.basename(pdf_path))
+        return _map_json_to_invoice(extracted_data, os.path.basename(pdf_path), pdf_type)
         
     except Exception as e:
         logger.error(f"Vision AI extraction failed: {e}")
@@ -182,7 +182,7 @@ def parse_invoice_with_vision(pdf_path: str, extracted_text: str, api_key: str) 
         return None
 
 
-def _map_json_to_invoice(data: dict, filename: str) -> Invoice:
+def _map_json_to_invoice(data: dict, filename: str, pdf_type: PDFType = PDFType.DIGITAL) -> Invoice:
     """Map the structured JSON parsed from Gemini into our internal Invoice dataclass."""
     
     # 1. Parties
@@ -209,7 +209,7 @@ def _map_json_to_invoice(data: dict, filename: str) -> Invoice:
     
     invoice = Invoice(
         source_file=filename,
-        pdf_type=PDFType.DIGITAL,  # Model classified
+        pdf_type=pdf_type,
         extraction_method=ExtractionSource.OCR,
         seller=seller,
         buyer=buyer,

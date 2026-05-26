@@ -15,6 +15,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+import csv
 
 import openpyxl
 from openpyxl.styles import (
@@ -22,7 +23,19 @@ from openpyxl.styles import (
 )
 from openpyxl.utils import get_column_letter
 
-from src.models import Invoice, ValidationStatus
+from src.models import Invoice, ValidationStatus, ExtractedField
+
+def _load_vendor_master() -> list[dict]:
+    """Load the vendor configuration from CSV."""
+    config_path = Path("config/vendor_master.csv")
+    if not config_path.exists():
+        return []
+    vendors = []
+    with open(config_path, mode='r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            vendors.append(row)
+    return vendors
 
 logger = logging.getLogger(__name__)
 
@@ -468,42 +481,31 @@ def _write_journal_entry_sheet(ws, invoices: list[Invoice]):
         except Exception:
             trans_date_val = inv_date
 
-        # Resolve vendor code dynamically
-        vendor_code = "CMS0019487"  # Default Green Clean code
+        # Resolve vendor code dynamically from CSV
+        vendor_code = "CMS0019487"  # Default fallback
+        gl_code = 1310020100        # Default fallback
+        journal_type = "SEXPS"      # Default fallback
+        
         s_name_upper = seller_name.upper()
-        if "GREEN CLEAN" in s_name_upper:
-            vendor_code = "CMS0019487"
-        elif "AMAZON" in s_name_upper or "AWS" in s_name_upper:
-            vendor_code = "CMS0025260"
-        elif "CIEL" in s_name_upper:
-            vendor_code = "CMS0030932"
-        elif "ICOMM" in s_name_upper:
-            vendor_code = "CMS0040963"
-        elif "INUBE" in s_name_upper:
-            vendor_code = "CMS0025463"
-        elif "MAXIMUS" in s_name_upper:
-            vendor_code = "CMS0039853"
-        elif "TATA" in s_name_upper or "POWER" in s_name_upper:
-            vendor_code = "CMS0098253"
-        elif "OEC" in s_name_upper:
-            vendor_code = "CMS0035119"
-        elif "COURIER" in s_name_upper:
-            vendor_code = "CMS0035169"
-        elif "CASA" in s_name_upper:
-            vendor_code = "CMS0036201"
-        elif "SAANVI" in s_name_upper:
-            vendor_code = "CMS0036546"
-        elif "VAULT" in s_name_upper:
-            vendor_code = "CMS0026270"
-        elif seller_gstin:
+        
+        vendors = _load_vendor_master()
+        matched = False
+        for v in vendors:
+            if v.get('Keyword', '').upper() in s_name_upper:
+                vendor_code = v.get('Vendor_Code', vendor_code)
+                gl_code = int(v.get('GL_Code', gl_code))
+                journal_type = v.get('Journal_Type', journal_type)
+                matched = True
+                break
+                
+        if not matched and seller_gstin:
             import hashlib
             stable_hash = int(hashlib.md5(seller_gstin.encode()).hexdigest(), 16) % 10000000
             vendor_code = f"CMS{stable_hash:07d}"
-        else:
+        elif not matched:
             import hashlib
             stable_hash = int(hashlib.md5(seller_name.encode()).hexdigest(), 16) % 10000000
             vendor_code = f"CMS{stable_hash:07d}"
-
         # Resolve Col L dynamic description e.g., 'APR.26/HK MATERIAL/PORUR'
         desc_period = "APR.26"
         try:
@@ -567,12 +569,12 @@ def _write_journal_entry_sheet(ws, invoices: list[Invoice]):
             ws.cell(row=row, column=1, value=l_id)
             ws.cell(row=row, column=2, value=acc_period)
             ws.cell(row=row, column=3, value=trans_date_val)
-            ws.cell(row=row, column=4, value=1310020100)  # Expense GL
+            ws.cell(row=row, column=4, value=gl_code)  # Expense GL
             ws.cell(row=row, column=5, value="REPAIRS AND MAINT. OFFICE BLDG")
             ws.cell(row=row, column=6, value="INR")
             ws.cell(row=row, column=7, value=group_taxable_rounded)
             ws.cell(row=row, column=8, value="D")
-            ws.cell(row=row, column=9, value="SEXPS")
+            ws.cell(row=row, column=9, value=journal_type)
             ws.cell(row=row, column=11, value=f"{vendor_code}/{seller_name.upper()}")
             ws.cell(row=row, column=12, value=col_l_desc)
             ws.cell(row=row, column=17, value="LXS00")
@@ -587,6 +589,12 @@ def _write_journal_entry_sheet(ws, invoices: list[Invoice]):
             ws.cell(row=row, column=27, value=trans_date_val)
             ws.cell(row=row, column=32, value=seller_gstin)
             ws.cell(row=row, column=33, value=inv_num)
+            
+            # Reverse charge (AM, AN) -> columns 39, 40
+            rev_charge = inv.reverse_charge if hasattr(inv, 'reverse_charge') else "No"
+            ws.cell(row=row, column=39, value=rev_charge)
+            ws.cell(row=row, column=40, value=rev_charge)
+            
             ws.cell(row=row, column=44, value=buyer_gstin)
             row += 1
 
@@ -605,7 +613,7 @@ def _write_journal_entry_sheet(ws, invoices: list[Invoice]):
                     ws.cell(row=row, column=6, value="INR")
                     ws.cell(row=row, column=7, value=igst_amount)
                     ws.cell(row=row, column=8, value="D")
-                    ws.cell(row=row, column=9, value="SEXPS")
+                    ws.cell(row=row, column=9, value=journal_type)
                     ws.cell(row=row, column=11, value=f"{vendor_code}/{seller_name.upper()}")
                     ws.cell(row=row, column=12, value=col_l_desc)
                     ws.cell(row=row, column=17, value="LXS00")
@@ -640,7 +648,7 @@ def _write_journal_entry_sheet(ws, invoices: list[Invoice]):
                     ws.cell(row=row, column=6, value="INR")
                     ws.cell(row=row, column=7, value=tax_amount)
                     ws.cell(row=row, column=8, value="D")
-                    ws.cell(row=row, column=9, value="SEXPS")
+                    ws.cell(row=row, column=9, value=journal_type)
                     ws.cell(row=row, column=11, value=f"{vendor_code}/{seller_name.upper()}")
                     ws.cell(row=row, column=12, value=col_l_desc)
                     ws.cell(row=row, column=17, value="LXS00")
@@ -671,7 +679,7 @@ def _write_journal_entry_sheet(ws, invoices: list[Invoice]):
                     ws.cell(row=row, column=6, value="INR")
                     ws.cell(row=row, column=7, value=tax_amount)
                     ws.cell(row=row, column=8, value="D")
-                    ws.cell(row=row, column=9, value="SEXPS")
+                    ws.cell(row=row, column=9, value=journal_type)
                     ws.cell(row=row, column=11, value=f"{vendor_code}/{seller_name.upper()}")
                     ws.cell(row=row, column=12, value=col_l_desc)
                     ws.cell(row=row, column=17, value="LXS00")

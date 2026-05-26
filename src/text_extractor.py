@@ -191,23 +191,54 @@ def extract_document(pdf_path: str) -> DocumentContent:
 
             pc.word_count = len(pc.text.split())
 
-            # 2. Table extraction — Tier 1: bordered tables
+            # 2. Table extraction — Tier 1: Camelot (lattice & stream)
             try:
-                raw_tables = page.extract_tables() or []
-                # Filter out empty/trivial tables
-                valid_tables = [
-                    t for t in raw_tables
-                    if len(t) >= 2 and any(
-                        any(cell and str(cell).strip() for cell in row)
-                        for row in t
-                    )
-                ]
+                import camelot
+                import warnings
+                # Suppress camelot warnings
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    # First try lattice (bordered tables)
+                    camelot_tables = camelot.read_pdf(pdf_path, pages=str(i), flavor='lattice')
+                    if not camelot_tables:
+                        # Try stream (borderless tables)
+                        camelot_tables = camelot.read_pdf(pdf_path, pages=str(i), flavor='stream')
+                
+                valid_tables = []
+                for t in camelot_tables:
+                    df = t.df
+                    # Convert df to list of lists
+                    table_list = df.values.tolist()
+                    if len(table_list) >= 2 and any(any(str(cell).strip() for cell in row) for row in table_list):
+                        valid_tables.append([[str(c) for c in row] for row in table_list])
+                
                 if valid_tables:
                     pc.tables = valid_tables
-                    pc.table_source = "pdfplumber"
-                    logger.debug(f"Page {i}: {len(valid_tables)} bordered tables found")
+                    pc.table_source = "camelot"
+                    logger.debug(f"Page {i}: {len(valid_tables)} tables found via Camelot")
             except Exception as e:
-                logger.warning(f"Page {i} table extraction failed: {e}")
+                logger.warning(f"Page {i} Camelot table extraction failed: {e}")
+
+            # 2.5. Tier 1.5: pdfplumber.extract_tables() fallback if Camelot failed
+            if not pc.tables:
+                try:
+                    plumber_tables = page.extract_tables() or []
+                    valid_tables = []
+                    for table in plumber_tables:
+                        if table and len(table) >= 2:
+                            cleaned = [[str(cell or "") for cell in row] for row in table]
+                            # Quality gate: reject tables where most cells are empty
+                            total_cells = sum(len(r) for r in cleaned)
+                            non_empty = sum(1 for r in cleaned for c in r if c.strip())
+                            fill_ratio = non_empty / total_cells if total_cells > 0 else 0
+                            if fill_ratio >= 0.15:
+                                valid_tables.append(cleaned)
+                    if valid_tables:
+                        pc.tables = valid_tables
+                        pc.table_source = "pdfplumber"
+                        logger.debug(f"Page {i}: {len(valid_tables)} tables found via pdfplumber fallback")
+                except Exception as e:
+                    logger.warning(f"Page {i} pdfplumber table extraction failed: {e}")
 
             # 3. Table extraction — Tier 2: word clustering fallback
             if not pc.tables and pc.word_count > 20:

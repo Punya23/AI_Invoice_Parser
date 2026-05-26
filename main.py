@@ -107,7 +107,7 @@ def process_single_invoice(pdf_path: str) -> Invoice:
     if api_key:
         try:
             from src.vision_parser import parse_invoice_with_vision
-            inv = parse_invoice_with_vision(pdf_path, text, api_key)
+            inv = parse_invoice_with_vision(pdf_path, text, api_key, PDFType(profile.pdf_type))
             if inv:
                 logger.info("  Successfully parsed using Multimodal Vision AI!")
         except Exception as e:

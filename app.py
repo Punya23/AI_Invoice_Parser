@@ -13,7 +13,10 @@ import streamlit as st
 import tempfile
 import os
 import time
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from src.pdf_detector import classify_pdf
 from src.text_extractor import extract_document

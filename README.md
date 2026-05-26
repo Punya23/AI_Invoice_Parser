@@ -12,13 +12,44 @@
 
 Processes invoice PDFs and extracts structured data into a multi-sheet Excel workbook:
 
-| Input | Output |
-|---|---|
-| Invoice PDFs (digital or scanned) | Excel workbook with: |
-| | 📊 Summary dashboard |
-| | 📄 Individual invoice detail sheets |
-| | 📋 Extraction log with confidence scores |
-| | 📒 Journal Entry ERP upload format |
+```mermaid
+graph TD
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
+    classDef input fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef process fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef output fill:#fff8e1,stroke:#f57f17,stroke-width:2px;
+
+    In["📄 Input Invoice PDFs <br>(Digital or Scanned)"]:::input --> Pipeline["⚙️ Accuron AI Pipeline <br> Classifier ➔ Extractor ➔ Validator"]:::process
+    Pipeline --> Out["📊 Output: Multi-Sheet Excel (.xlsx)"]:::output
+    
+    subgraph Generated Worksheets
+        Out --> S1["📊 Summary Dashboard"]
+        Out --> S2["📄 Individual Invoice Details"]
+        Out --> S3["📋 details to be captured (ERP Guide)"]
+        Out --> S4["📒 upload format (ERP Journal Entry)"]
+    end
+```
+
+```
+                                 ┌────────────────────────┐
+                                 │   Input Invoice PDFs   │
+                                 │  (Digital or Scanned)  │
+                                 └───────────┬────────────┘
+                                             │
+                                             ▼
+                             ┌──────────────────────────────┐
+                             │  Accuron AI Parser Pipeline  │
+                             └───────────┬──────────────────┘
+                                             │
+                                             ▼
+                               ┌──────────────────────────┐
+                               │  Multi-Sheet Excel (.xlsx)│
+                               └─────────────┬────────────┘
+                                             ├─▶ 📊 Summary Dashboard
+                                             ├─▶ 📄 Individual Invoice Details
+                                             ├─▶ 📋 details to be captured (Guide)
+                                             └─▶ 📒 upload format (ERP Journal)
+```
 
 ### Fields Extracted
 - Invoice Number, Date, Due Date

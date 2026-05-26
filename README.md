@@ -1,0 +1,223 @@
+# 📄 Accuron AI — Invoice Parser POC
+
+> **Automated Invoice PDF → Structured Excel pipeline**  
+> Handles both **digital** and **scanned** PDFs with deterministic regex-based extraction
+
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
+---
+
+## 🎯 What It Does
+
+Processes invoice PDFs and extracts structured data into a multi-sheet Excel workbook:
+
+| Input | Output |
+|---|---|
+| Invoice PDFs (digital or scanned) | Excel workbook with: |
+| | 📊 Summary dashboard |
+| | 📄 Individual invoice detail sheets |
+| | 📋 Extraction log with confidence scores |
+| | 📒 Journal Entry ERP upload format |
+
+### Fields Extracted
+- Invoice Number, Date, Due Date
+- Seller & Buyer details (Name, GSTIN, Address, State Code)
+- Line items (Description, HSN/SAC, Qty, Rate, Amount, GST)
+- Tax breakdown (CGST, SGST, IGST with rates)
+- Grand Total, Round-off, Amount in Words
+- Bank details, IRN, e-Invoice Acknowledgement
+- Place of Supply, Reverse Charge flag
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
+│   PDF Input  │────▶│  Classifier  │────▶│  Extractor   │────▶│   Parser     │────▶│  Validator   │
+│  (Upload)    │     │ digital/scan │     │ text/OCR     │     │ regex engine │     │ GSTIN/math   │
+└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────┬───────┘
+                                                                                           │
+                                                                                           ▼
+                                                                                    ┌──────────────┐
+                                                                                    │    Excel     │
+                                                                                    │  Generator   │
+                                                                                    └──────────────┘
+```
+
+### Design Decisions
+
+| Decision | Why |
+|---|---|
+| **Regex over LLM** | Deterministic, reproducible, zero API cost, auditable |
+| **Tesseract over PaddleOCR** | 30MB vs 1.5GB install, 0.5s vs 3-5s/page, production-friendly |
+| **pdfplumber over PyPDF** | Superior table extraction, word-level bounding boxes |
+| **Two-tier table extraction** | Bordered → pdfplumber, Borderless → positional word clustering |
+| **Field-level confidence** | Critical fields (invoice#, date, total) carry individual scores |
+| **Error isolation** | One failed PDF never blocks other invoices |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+```bash
+# Install Tesseract OCR (required for scanned PDFs)
+brew install tesseract          # macOS
+sudo apt install tesseract-ocr  # Ubuntu/Debian
+```
+
+### Installation
+```bash
+git clone https://github.com/YOUR_USERNAME/accuron-invoice-parser.git
+cd accuron-invoice-parser
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate    # Mac/Linux
+# venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### CLI Usage
+```bash
+# Process all PDFs in a directory
+python main.py --input Document/ --output output/result.xlsx
+
+# Process a single PDF
+python main.py --input Document/invoice.pdf --output output/result.xlsx
+
+# Skip Journal Entry format sheet
+python main.py --input Document/ --output output/result.xlsx --no-journal
+```
+
+### Streamlit Web UI
+```bash
+streamlit run app.py
+```
+Then open http://localhost:8501 in your browser.
+
+---
+
+## 📁 Project Structure
+
+```
+accuron-invoice-parser/
+├── main.py                    # CLI entry point
+├── app.py                     # Streamlit web interface
+├── requirements.txt           # Python dependencies
+├── README.md
+├── src/
+│   ├── __init__.py
+│   ├── models.py              # Data models (Invoice, LineItem, etc.)
+│   ├── pdf_detector.py        # PDF type classification (digital/scanned)
+│   ├── text_extractor.py      # Digital PDF extraction (pdfplumber + clustering)
+│   ├── ocr_extractor.py       # Scanned PDF extraction (Tesseract OCR)
+│   ├── invoice_parser.py      # Regex-based field extraction engine
+│   ├── validator.py           # GSTIN, math, date, completeness validation
+│   └── excel_generator.py     # Multi-sheet Excel workbook generator
+├── Document/                  # Sample invoice PDFs (test data)
+└── output/                    # Generated Excel reports
+```
+
+---
+
+## 🔍 Technical Details
+
+### PDF Classification
+Every PDF is classified before processing:
+- **Digital**: Has embedded text layer → pdfplumber (fast, accurate)
+- **Scanned**: Image-only → Tesseract OCR with image preprocessing
+- **Hybrid**: Mix → digital pages via pdfplumber, scanned via OCR
+
+### Two-Tier Table Extraction
+1. **Tier 1**: `pdfplumber.extract_tables()` — works on bordered tables (CIEL HR, Vault Infosec)
+2. **Tier 2**: Positional word clustering — fallback for borderless tables (Green Clean, Tally-style invoices)
+   - Groups words by Y-coordinate proximity into rows
+   - Identifies column boundaries from X-position clustering
+   - Reconstructs a 2D table grid
+
+### Regex Engine
+- 8-10 pattern aliases per field (handles diverse invoice formats)
+- `dateutil.parser` as fallback for date parsing
+- Dynamic table column mapping based on header keyword detection
+- Tally-format parser for split-line invoice numbers
+
+### Validation Layer
+1. **GSTIN validation**: 15-character format check
+2. **Mathematical cross-checks**: `qty × rate ≈ amount`, `Σ items ≈ subtotal`, `subtotal + tax ≈ total`
+3. **Date sanity**: Parseable, not future-dated, not >5 years old
+4. **Completeness**: Required fields present (invoice#, date, total, seller)
+
+### OCR Engine (Modular)
+Currently uses **Tesseract** (lightweight, fast). Architecture supports drop-in replacement with:
+- PaddleOCR (higher accuracy for complex layouts)
+- Google Document AI (cloud-based, highest accuracy)
+- AWS Textract (production alternative)
+
+---
+
+## 📊 Test Results
+
+Tested against 12 Accuron invoices (5 digital + 7 scanned):
+
+| Invoice | Type | Invoice # | Date | Total | Status |
+|---|---|---|---|---|---|
+| AWS IT | Digital | AIN2526001124876 | 02/07/2025 | ₹27,12,845.83 | ✅ |
+| CIEL HR | Digital | IHR030932627 | 28/04/2026 | ₹12,90,543.66 | ✅ |
+| INUBE IT | Digital | 25-26/463 | 11/02/2026 | ₹21,24,000.00 | ✅ |
+| Green Clean | Digital | GC/26-27/251 | 17/04/2026 | ₹1,83,900.00 | ✅ |
+| Vault Infosec | Digital | VIIPL-2627-002 | 02/04/2026 | ₹1,77,000.00 | ✅ |
+| Tata Power | Scanned (OCR) | Extracted | Extracted | Extracted | ⚠️ |
+| OEC Records | Scanned (OCR) | Extracted | Extracted | ₹1,44,356.71 | ⚠️ |
+| Professional Couriers | Scanned (OCR) | MAA30080062 | Extracted | ₹974.32 | ✅ |
+| Casa 2 Stays | Scanned (OCR) | BR/2526/01744 | Extracted | Extracted | ⚠️ |
+| Saanvi Trading | Scanned (OCR) | ST/25-26/001 | Extracted | Extracted | ⚠️ |
+
+*⚠️ = Partially extracted — OCR accuracy varies with scan quality*
+
+---
+
+## 🧪 Dependencies
+
+| Package | Version | Purpose | Size |
+|---|---|---|---|
+| pdfplumber | ≥0.11.0 | Digital PDF text & table extraction | 2MB |
+| PyMuPDF | ≥1.24.0 | PDF rendering for OCR (no poppler) | 15MB |
+| openpyxl | ≥3.1.0 | Excel workbook generation | 5MB |
+| pandas | ≥2.0.0 | Data manipulation | 40MB |
+| python-dateutil | ≥2.8.0 | Date parsing | 300KB |
+| pytesseract | ≥0.3.10 | Tesseract OCR Python wrapper | 50KB |
+| Pillow | ≥10.0.0 | Image preprocessing for OCR | 10MB |
+| streamlit | ≥1.40.0 | Web interface | 30MB |
+
+**Total install: ~100MB** (vs ~1.5GB with PaddleOCR)
+
+System requirement: `tesseract` binary (`brew install tesseract`)
+
+---
+
+## 📈 Production Scaling Notes
+
+This is a POC. For production deployment:
+
+1. **OCR upgrade**: Swap Tesseract for PaddleOCR or Google Document AI for higher accuracy
+2. **Async processing**: Queue-based architecture for batch invoice processing  
+3. **Template learning**: Auto-detect invoice templates by vendor for improved regex targeting
+4. **API layer**: FastAPI wrapper for REST endpoint integration
+5. **Database**: PostgreSQL for invoice storage and deduplication
+6. **Monitoring**: Field-level confidence dashboards for extraction quality tracking
+
+---
+
+## 👤 Author
+
+**Punya Surana**  
+Built for Accuron AI Technologies Pvt Ltd — Internship Assignment
+
+---
+
+*Built with ❤️ using pure Python engineering — no LLM APIs, no cloud dependencies*

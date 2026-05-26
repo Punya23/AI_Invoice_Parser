@@ -14,13 +14,8 @@ Processes invoice PDFs and extracts structured data into a multi-sheet Excel wor
 
 ```mermaid
 graph TD
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
-    classDef input fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
-    classDef process fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef output fill:#fff8e1,stroke:#f57f17,stroke-width:2px;
-
-    In["📄 Input Invoice PDFs <br>(Digital or Scanned)"]:::input --> Pipeline["⚙️ Accuron AI Pipeline <br> Classifier ➔ Extractor ➔ Validator"]:::process
-    Pipeline --> Out["📊 Output: Multi-Sheet Excel (.xlsx)"]:::output
+    In["📄 Input: Invoice PDFs (Digital / Scanned)"] --> Pipeline["⚙️ Accuron AI Pipeline (Classify ➔ Parse ➔ Validate)"]
+    Pipeline --> Out["📊 Output: Multi-Sheet Excel Workbook (.xlsx)"]
     
     subgraph Generated Worksheets
         Out --> S1["📊 Summary Dashboard"]
@@ -30,26 +25,6 @@ graph TD
     end
 ```
 
-```
-                                 ┌────────────────────────┐
-                                 │   Input Invoice PDFs   │
-                                 │  (Digital or Scanned)  │
-                                 └───────────┬────────────┘
-                                             │
-                                             ▼
-                             ┌──────────────────────────────┐
-                             │  Accuron AI Parser Pipeline  │
-                             └───────────┬──────────────────┘
-                                             │
-                                             ▼
-                               ┌──────────────────────────┐
-                               │  Multi-Sheet Excel (.xlsx)│
-                               └─────────────┬────────────┘
-                                             ├─▶ 📊 Summary Dashboard
-                                             ├─▶ 📄 Individual Invoice Details
-                                             ├─▶ 📋 details to be captured (Guide)
-                                             └─▶ 📒 upload format (ERP Journal)
-```
 
 ### Fields Extracted
 - Invoice Number, Date, Due Date
@@ -64,17 +39,13 @@ graph TD
 
 ## 🏗️ Architecture
 
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   PDF Input  │────▶│  Classifier  │────▶│  Extractor   │────▶│   Parser     │────▶│  Validator   │
-│  (Upload)    │     │ digital/scan │     │ text/OCR     │     │ regex engine │     │ GSTIN/math   │
-└──────────────┘     └──────────────┘     └──────────────┘     └──────────────┘     └──────┬───────┘
-                                                                                           │
-                                                                                           ▼
-                                                                                    ┌──────────────┐
-                                                                                    │    Excel     │
-                                                                                    │  Generator   │
-                                                                                    └──────────────┘
+```mermaid
+graph LR
+    A["📄 PDF Input"] --> B["🔍 Classifier<br>(Digital / Scanned)"]
+    B --> C["⚡ Extractor<br>(pdfplumber / OCR)"]
+    C --> D["🧠 Parser<br>(Heuristics / Vision AI)"]
+    D --> E["✅ Validator<br>(GSTIN & Math Check)"]
+    E --> F["📊 Excel Generator<br>(openpyxl Output)"]
 ```
 
 ### Design Decisions

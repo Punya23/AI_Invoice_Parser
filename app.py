@@ -224,7 +224,10 @@ if uploaded_files:
                         else:
                             text += "\n\n" + ocr_result.full_text
                     except ImportError as e:
-                        st.warning(f"OCR not available for {uploaded_file.name}: {e}")
+                        if not api_key_input:
+                            st.warning(f"OCR not available for {uploaded_file.name}: {e}")
+                        else:
+                            logger.info(f"Local OCR not available for {uploaded_file.name}: {e}. Continuing with Vision AI.")
                 
                 # Step 3: Parse
                 inv = None

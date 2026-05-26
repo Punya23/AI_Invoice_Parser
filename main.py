@@ -75,21 +75,23 @@ def process_single_invoice(pdf_path: str) -> Invoice:
                     if not any(p.page_number == ocr_page.page_number and p.text.strip()
                               for p in doc.pages):
                         text += f"\n\n{ocr_page.text}"
+                tables.extend(ocr_result.all_tables)
                 extraction_source = ExtractionSource.PDFPLUMBER_TEXT
             except ImportError:
-                logger.warning("  PaddleOCR not installed — scanned pages will be skipped")
+                logger.warning("  Tesseract/OpenCV not installed — scanned pages will be skipped")
 
     elif profile.pdf_type == "scanned":
         try:
             from src.ocr_extractor import extract_with_ocr
             ocr_result = extract_with_ocr(pdf_path)
             text = ocr_result.full_text
+            tables = ocr_result.all_tables
             extraction_source = ExtractionSource.OCR
             logger.info(f"  OCR confidence: {ocr_result.overall_confidence:.1%}")
         except ImportError:
             logger.error(
-                "  PaddleOCR not installed. Cannot process scanned PDFs.\n"
-                "  Install with: pip install -r requirements-ocr.txt"
+                "  Tesseract or OpenCV not installed. Cannot process scanned PDFs.\n"
+                "  Install with: pip install opencv-python-headless pytesseract"
             )
             inv = Invoice(source_file=filename, pdf_type=PDFType.SCANNED)
             inv.processing_errors.append("Scanned PDF — OCR not installed")
@@ -98,13 +100,30 @@ def process_single_invoice(pdf_path: str) -> Invoice:
     logger.info(f"  Extracted: {len(text)} chars, {len(tables)} tables")
 
     # Step 3: Parse into structured Invoice
-    inv = parse_invoice(
-        text=text,
-        tables=tables,
-        source_file=filename,
-        pdf_type=PDFType(profile.pdf_type),
-        extraction_source=extraction_source,
-    )
+    import os
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    inv = None
+    
+    if api_key:
+        try:
+            from src.vision_parser import parse_invoice_with_vision
+            inv = parse_invoice_with_vision(pdf_path, text, api_key)
+            if inv:
+                logger.info("  Successfully parsed using Multimodal Vision AI!")
+        except Exception as e:
+            logger.warning(f"  Vision AI parsing encountered error: {e}. Falling back to Local Parser.")
+            
+    if not inv:
+        if not api_key:
+            logger.info("  Vision AI API key (GEMINI_API_KEY) not found. Using offline Local Deterministic Parser.")
+        inv = parse_invoice(
+            text=text,
+            tables=tables,
+            source_file=filename,
+            pdf_type=PDFType(profile.pdf_type),
+            extraction_source=extraction_source,
+        )
+        
     inv.page_count = profile.page_count
 
     logger.info(

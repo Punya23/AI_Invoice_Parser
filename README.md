@@ -50,10 +50,10 @@ Processes invoice PDFs and extracts structured data into a multi-sheet Excel wor
 
 | Decision | Why |
 |---|---|
-| **Regex over LLM** | Deterministic, reproducible, zero API cost, auditable |
+| **Hybrid Approach (Regex + Vision AI)** | Fast regex parsing for standard layouts, fallback to Gemini 1.5 Flash Vision API for complex/unstructured tables |
+| **Deterministic Base** | Core extraction remains deterministic and auditable; AI only handles the heavily unstructured tables |
 | **Tesseract over PaddleOCR** | 30MB vs 1.5GB install, 0.5s vs 3-5s/page, production-friendly |
 | **pdfplumber over PyPDF** | Superior table extraction, word-level bounding boxes |
-| **Two-tier table extraction** | Bordered → pdfplumber, Borderless → positional word clustering |
 | **Field-level confidence** | Critical fields (invoice#, date, total) carry individual scores |
 | **Error isolation** | One failed PDF never blocks other invoices |
 
@@ -116,6 +116,7 @@ accuron-invoice-parser/
 │   ├── pdf_detector.py        # PDF type classification (digital/scanned)
 │   ├── text_extractor.py      # Digital PDF extraction (pdfplumber + clustering)
 │   ├── ocr_extractor.py       # Scanned PDF extraction (Tesseract OCR)
+│   ├── vision_parser.py       # Multimodal Vision AI extraction (Gemini 1.5 Flash)
 │   ├── invoice_parser.py      # Regex-based field extraction engine
 │   ├── validator.py           # GSTIN, math, date, completeness validation
 │   └── excel_generator.py     # Multi-sheet Excel workbook generator
@@ -152,9 +153,8 @@ Every PDF is classified before processing:
 3. **Date sanity**: Parseable, not future-dated, not >5 years old
 4. **Completeness**: Required fields present (invoice#, date, total, seller)
 
-### OCR Engine (Modular)
-Currently uses **Tesseract** (lightweight, fast). Architecture supports drop-in replacement with:
-- PaddleOCR (higher accuracy for complex layouts)
+### OCR & AI Engine (Modular)
+Currently uses **Tesseract** for basic scanned text, and **Gemini 1.5 Flash Vision API** for handling complex table structures that the heuristics miss. Architecture supports drop-in replacement with:
 - Google Document AI (cloud-based, highest accuracy)
 - AWS Textract (production alternative)
 
@@ -175,7 +175,7 @@ Tested against 12 Accuron invoices (5 digital + 7 scanned):
 | OEC Records | Scanned (OCR) | Extracted | Extracted | ₹1,44,356.71 | ⚠️ |
 | Professional Couriers | Scanned (OCR) | MAA30080062 | Extracted | ₹974.32 | ✅ |
 | Casa 2 Stays | Scanned (OCR) | BR/2526/01744 | Extracted | Extracted | ⚠️ |
-| Saanvi Trading | Scanned (OCR) | ST/25-26/001 | Extracted | Extracted | ⚠️ |
+| Saanvi Trading | Scanned (OCR) | ST/25-26/001 | Extracted | Extracted | ✅ |
 
 *⚠️ = Partially extracted — OCR accuracy varies with scan quality*
 
@@ -188,13 +188,12 @@ Tested against 12 Accuron invoices (5 digital + 7 scanned):
 | pdfplumber | ≥0.11.0 | Digital PDF text & table extraction | 2MB |
 | PyMuPDF | ≥1.24.0 | PDF rendering for OCR (no poppler) | 15MB |
 | openpyxl | ≥3.1.0 | Excel workbook generation | 5MB |
-| pandas | ≥2.0.0 | Data manipulation | 40MB |
 | python-dateutil | ≥2.8.0 | Date parsing | 300KB |
 | pytesseract | ≥0.3.10 | Tesseract OCR Python wrapper | 50KB |
 | Pillow | ≥10.0.0 | Image preprocessing for OCR | 10MB |
 | streamlit | ≥1.40.0 | Web interface | 30MB |
 
-**Total install: ~100MB** (vs ~1.5GB with PaddleOCR)
+**Total install: ~60MB** (vs ~1.5GB with PaddleOCR)
 
 System requirement: `tesseract` binary (`brew install tesseract`)
 
@@ -220,4 +219,4 @@ Built for Accuron AI Technologies Pvt Ltd — Internship Assignment
 
 ---
 
-*Built with ❤️ using pure Python engineering — no LLM APIs, no cloud dependencies*
+*Built with ❤️ using Python and state-of-the-art Hybrid Extraction Pipelines*

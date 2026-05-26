@@ -20,8 +20,12 @@ __pycache__/
 Thumbs.db
 
 # Output
-output/*.xlsx
+output/
 
 # Temp
 *.tmp
 *.bak
+
+# Scratch
+scratch/
+

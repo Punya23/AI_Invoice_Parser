@@ -30,6 +30,7 @@ class OCRPageResult:
     page_number: int
     text: str = ""
     confidence: float = 0.0
+    tables: list = field(default_factory=list)
 
 
 @dataclass
@@ -40,6 +41,13 @@ class OCRDocumentResult:
     @property
     def full_text(self) -> str:
         return "\n\n".join(p.text for p in self.pages if p.text)
+
+    @property
+    def all_tables(self) -> list:
+        tables = []
+        for page in self.pages:
+            tables.extend(page.tables)
+        return tables
 
     @property
     def overall_confidence(self) -> float:
@@ -92,6 +100,9 @@ def extract_with_ocr(pdf_path: str, dpi: int = 300) -> OCRDocumentResult:
     import pytesseract
     import fitz
     from PIL import Image, ImageFilter
+    
+    # Import our new Computer Vision table extractor
+    from src.cv_table_extractor import extract_tables_from_image
 
     doc_result = OCRDocumentResult(pdf_path=pdf_path)
 
@@ -113,6 +124,13 @@ def extract_with_ocr(pdf_path: str, dpi: int = 300) -> OCRDocumentResult:
             # Run Tesseract — get text
             text = pytesseract.image_to_string(img_sharp, lang='eng')
 
+            # Extract tables deterministically using Computer Vision
+            try:
+                tables = extract_tables_from_image(img)
+            except Exception as e:
+                logger.warning(f"  CV Table extraction failed on page {page_num + 1}: {e}")
+                tables = []
+
             # Get confidence from TSV output
             try:
                 tsv_data = pytesseract.image_to_data(img_sharp, lang='eng', output_type=pytesseract.Output.DICT)
@@ -125,6 +143,7 @@ def extract_with_ocr(pdf_path: str, dpi: int = 300) -> OCRDocumentResult:
                 page_number=page_num + 1,
                 text=text.strip(),
                 confidence=round(avg_conf, 3),
+                tables=tables
             )
 
         except Exception as e:

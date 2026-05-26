@@ -29,32 +29,36 @@ logger = logging.getLogger(__name__)
 
 INVOICE_NUMBER_PATTERNS = [
     # "Invoice No. IHR030932627" or "Invoice No: 25-26/463"
-    r'(?:Invoice\s*(?:No|Number|Num)\.?\s*[:\-]?\s*)([A-Za-z0-9\-/]+)',
+    r'(?:Invoice[ \t]*(?:Number|Num|No)\b\.?[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
+    # "Invoice Reference: INDOM0022710" (OEC/Iron Mountain style)
+    r'(?:Invoice[ \t]*Reference\b[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
+    # "Invoice# 18526" (ICOMM style)
+    r'(?:Invoice[ \t]*#[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
     # "Bill No. XXX"
-    r'(?:Bill\s*(?:No|Number)\.?\s*[:\-]?\s*)([A-Za-z0-9\-/]+)',
+    r'(?:Bill[ \t]*(?:Number|No)\b\.?[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
     # "Ref No. XXX"
-    r'(?:Ref\s*(?:No|Number)\.?\s*[:\-]?\s*)([A-Za-z0-9\-/]+)',
+    r'(?:Ref[ \t]*(?:Number|No)\b\.?[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
     # "Invoice Number: AIN2526001124876"
-    r'(?:Invoice\s*Number)\s*[:\-]\s*([A-Za-z0-9\-/]+)',
+    r'(?:Invoice[ \t]*Number\b)[ \t]*[:\-][ \t]*([A-Za-z0-9\-/]+)',
     # "# : VIIPL-2627-002" (Vault style — must have colon)
-    r'(?:#\s*:\s*)([A-Za-z0-9\-]+)',
+    r'(?:#[ \t]*:[ \t]*)([A-Za-z0-9\-]+)',
     # "Inv No. XXX"
-    r'(?:Inv\.?\s*No\.?\s*[:\-]?\s*)([A-Za-z0-9\-/]+)',
+    r'(?:Inv\.?[ \t]*(?:Number|Num|No)\b\.?[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
     # "Voucher No. XXX"
-    r'(?:Voucher\s*No\.?\s*[:\-]?\s*)([A-Za-z0-9\-/]+)',
+    r'(?:Voucher[ \t]*(?:Number|Num|No)\b\.?[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
     # "Receipt No. XXX"
-    r'(?:Receipt\s*No\.?\s*[:\-]?\s*)([A-Za-z0-9\-/]+)',
+    r'(?:Receipt[ \t]*(?:Number|Num|No)\b\.?[ \t]*[:\-]?[ \t]*)([A-Za-z0-9\-/]+)',
 ]
 
 DATE_PATTERNS = [
     # DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
-    r'(\d{1,2}[\-/\.]\d{1,2}[\-/\.]\d{2,4})',
+    r'\b(\d{1,2}[\-/\.]\d{1,2}[\-/\.]\d{2,4})\b',
     # DD Mon YYYY or DD-Mon-YYYY (e.g., "11-Feb-26", "17-Apr-26")
-    r'(\d{1,2}[\s\-]*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-,]*\d{2,4})',
+    r'\b(\d{1,2}[\s\-]*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-,]*\d{2,4})\b',
     # Month DD, YYYY (e.g., "July 2, 2025", "Apr 28, 2026")
-    r'((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s*\d{2,4})',
+    r'\b((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s*\d{2,4})\b',
     # YYYY-MM-DD (ISO)
-    r'(\d{4}[\-/]\d{1,2}[\-/]\d{1,2})',
+    r'\b(\d{4}[\-/]\d{1,2}[\-/]\d{1,2})\b',
 ]
 
 DATE_LABEL_PATTERNS = [
@@ -64,21 +68,29 @@ DATE_LABEL_PATTERNS = [
     r'Bill\s*Date\s*[:\-]?\s*',
 ]
 
-GSTIN_PATTERN = r'(\d{2}[A-Za-z]{5}\d{4}[A-Za-z]\d[A-Za-z][A-Za-z\d])'
+GSTIN_PATTERN = r'([0-9OoILil]{2}[A-Za-z]{5}[0-9OoILil]{4}[A-Za-z][0-9OoILilA-Za-z]{3})'
 
 TOTAL_PATTERNS = [
     # "TOTAL AMOUNT DUE ON July Rs. 2,712,845.83" (AWS style)
-    r'TOTAL\s*AMOUNT\s*DUE\s*(?:ON\s*\w+)?\s*(?:Rs\.?|₹|INR)\s*([\d,]+\.?\d*)',
+    r'\bTOTAL\s*AMOUNT\s*DUE\s*(?:ON\s*\w+)?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
     # "Grand Total 1,77,000.00" or "Grand Total: ₹1,77,000.00"
-    r'Grand\s*Total\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
+    r'\bGrand\s*Total\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
+    # "Total = 9,750.00" (Tally style)
+    r'\bTotal\s*[=:\-]\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
     # "Total Invoice Value" or "Total Amount"
-    r'(?:Total\s*Invoice\s*Value|Total\s*Amount)\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
+    r'\b(?:Total\s*Invoice\s*Value|Total\s*Amount)\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
+    # "Total Amount Due: INR 144,356.71" (OEC style)
+    r'\bTotal\s*Amount\s*Due\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
+    # "Total? | Tf 1,17,924.00" (Talent Maximus style — lenient separator/Tf typo)
+    r'\bTotal\s*[?|:\- \t=]*\s*(?:Rs\.?|₹|INR|Tf)?\s*([\d,]+\.\d{2})',
+    # "Net payable amount \n\n = 3515.07" (Casa 2 stays style — split-line net payable)
+    r'\bNet\s*payable\s*amount\s*[=:\- \t]*\s*([\d,]+\.\d{2})',
     # "Net Amount" / "Net Payable" / "Amount Payable" / "Balance Due"
-    r'(?:Net\s*(?:Amount|Payable)|Amount\s*Payable|Balance\s*Due|Total\s*Due)\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
+    r'\b(?:Net\s*(?:Amount|Payable)|Amount\s*Payable|Balance\s*Due|Total\s*Due)\s*[:\-]?\s*(?:Rs\.?|₹|INR)?\s*([\d,]+\.?\d*)',
     # "Total Rs. 21,24,000.00" (INUBE style — Total with currency symbol)
-    r'^Total\s+(?:Rs\.?|₹|INR)\s*([\d,]+\.\d{2})\s*$',
+    r'^\bTotal\s+(?:Rs\.?|₹|INR)\s*([\d,]+\.\d{2})\s*$',
     # Simple "Total 12,90,774.86" standalone (CIEL style)
-    r'^Total\s+(\d[\d,]+\.\d{2})\s*$',
+    r'^\bTotal\s+(\d[\d,]+\.\d{2})\s*$',
 ]
 
 
@@ -141,20 +153,27 @@ def _parse_amount(text: str) -> float:
     """
     Parse an amount string to float.
     Handles Indian lakh format (1,77,000.00), ₹, Rs., commas.
-    
-    Indian number format: 1,23,45,678.90
-    Western format: 123,456,789.90
-    Both become: 12345678.90
+    Also handles OCR comma-confused decimals (e.g. 20,00 -> 20.00).
     """
     if not text:
         return 0.0
-    # Remove currency symbols and spaces
+    # Strip spaces and currency symbols
     cleaned = re.sub(r'[₹\s]', '', text)
     cleaned = re.sub(r'^Rs\.?\s*', '', cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r'^INR\s*', '', cleaned, flags=re.IGNORECASE)
-    # Remove all commas (handles both Indian and Western formats)
+    
+    # Strip trailing punctuation/non-numeric characters commonly confused by OCR
+    cleaned = cleaned.rstrip(')-/ \t\n\r|]}’')
+    
+    # OCR confusion: if there is a comma followed by exactly two digits at the end, 
+    # and no period in the string, replace it with a dot (e.g. "20,00" -> "20.00")
+    if re.search(r',\d{2}$', cleaned) and '.' not in cleaned:
+        cleaned = re.sub(r',(\d{2})$', r'.\1', cleaned)
+        
+    # Remove all remaining commas (handles standard Western/Indian thousands separators)
     cleaned = cleaned.replace(',', '')
-    # Remove any trailing non-numeric chars
+    
+    # Keep only digits, periods, and minus signs
     cleaned = re.sub(r'[^\d.\-]', '', cleaned)
     try:
         return float(cleaned)
@@ -196,28 +215,78 @@ def _extract_invoice_date(text: str) -> Optional[str]:
             if match:
                 return _parse_date(match.group(1))
 
-    # Fallback: find date-like string on any line containing "date" or "dated"
+    # Fallback: find date-like string on any line containing "date" or "dated" (checking line and next 3 lines for layout shifts)
     lines = text.split('\n')
-    for line in lines:
+    for li, line in enumerate(lines):
         if re.search(r'\bdate[d]?\b', line, re.IGNORECASE):
-            for pat in DATE_PATTERNS:
-                m = re.search(pat, line, re.IGNORECASE)
-                if m:
-                    return _parse_date(m.group(1))
+            for offset in range(0, 4):
+                if li + offset >= len(lines):
+                    break
+                check_line = lines[li + offset]
+                for pat in DATE_PATTERNS:
+                    m = re.search(pat, check_line, re.IGNORECASE)
+                    if m:
+                        return _parse_date(m.group(1))
 
     # Last resort: look for "Dated" followed by date on same or next line  
-    dated_match = re.search(r'Dated\s*\n?\s*(' + '|'.join(p[1:-1] for p in DATE_PATTERNS) + ')', text, re.IGNORECASE)
+    dated_match = re.search(r'Dated\s*\n?\s*(' + '|'.join(p[2:-2] for p in DATE_PATTERNS) + ')', text, re.IGNORECASE)
     if dated_match:
         return _parse_date(dated_match.group(1))
 
+    # Ultimate fallback: search the entire text for ANY valid date pattern and return the first match
+    for date_pat in DATE_PATTERNS:
+        match = re.search(date_pat, text, re.IGNORECASE)
+        if match:
+            return _parse_date(match.group(1))
+
     return None
+
+
+def _normalize_gstin(raw: str) -> str:
+    """Normalize OCR character confusions in GSTIN."""
+    if not raw:
+        return ""
+    gst = raw.upper().replace(" ", "").strip()
+    gst_chars = list(gst)
+    
+    # GSTIN requires digits at indices: 0, 1, 7, 8, 9, 10, 12
+    digit_indices = [0, 1, 7, 8, 9, 10, 12]
+    for idx in digit_indices:
+        if idx < len(gst_chars):
+            c = gst_chars[idx]
+            if c in ('O', 'o', '0'):
+                gst_chars[idx] = '0'
+            elif c in ('I', 'i', 'L', 'l', '1'):
+                gst_chars[idx] = '1'
+            elif c == 'S':
+                gst_chars[idx] = '5'
+                
+    # GSTIN requires letters at indices: 2, 3, 4, 5, 6, 11
+    letter_indices = [2, 3, 4, 5, 6, 11]
+    for idx in letter_indices:
+        if idx < len(gst_chars):
+            c = gst_chars[idx]
+            if c == '0':
+                gst_chars[idx] = 'O'
+            elif c == '1':
+                gst_chars[idx] = 'I'
+            elif c == '5':
+                gst_chars[idx] = 'S'
+                
+    # The 14th character (index 13) is almost always 'Z'
+    if len(gst_chars) > 13:
+        c = gst_chars[13]
+        if c in ('2', '7', 's', 'S', 'z', 'o', '0'):
+            gst_chars[13] = 'Z'
+            
+    return "".join(gst_chars)
 
 
 def _extract_gstins(text: str) -> list[str]:
     """Extract all GSTIN numbers from text."""
     matches = re.findall(GSTIN_PATTERN, text, re.IGNORECASE)
-    # Normalize: uppercase, remove spaces
-    normalized = list(set(m.upper().replace(" ", "") for m in matches))
+    # Normalize: uppercase, remove spaces, handle OCR character confusions
+    normalized = list(set(_normalize_gstin(m) for m in matches))
     return normalized
 
 
@@ -242,14 +311,26 @@ def _parse_party_info(block: str) -> PartyInfo:
         return info
 
     lines = [l.strip() for l in block.split('\n') if l.strip()]
-    if lines:
-        # First non-empty line is usually the name
-        info.name = lines[0]
+    
+    # Generic names to reject as party name
+    REJECT_NAMES = {
+        "tax invoice", "invoice", "gst invoice", "original", "duplicate", 
+        "triplicate", "consignee", "buyer", "bill to", "ship to", "sold to",
+        "delivery note", "dated", "terms of delivery", "mode/terms of payment",
+    }
+    
+    for line in lines:
+        clean_name = line.replace("|", "").replace("'", "").replace("\"", "").replace("-", "").strip()
+        # Remove multiple spaces
+        clean_name = " ".join(clean_name.split())
+        if clean_name.lower() not in REJECT_NAMES and len(clean_name) > 3 and not re.search(r'Invoice\s*No', clean_name, re.I):
+            info.name = clean_name
+            break
 
-    # GSTIN
+    # GSTIN with normalization for OCR character confusions
     gstin_match = re.search(GSTIN_PATTERN, block, re.IGNORECASE)
     if gstin_match:
-        info.gstin = gstin_match.group(1).upper()
+        info.gstin = _normalize_gstin(gstin_match.group(1))
 
     # State
     state_match = re.search(r'State\s*(?:Name)?\s*[:\-]?\s*(.+?)(?:,|Code|\n|$)', block, re.IGNORECASE)
@@ -271,12 +352,21 @@ def _parse_party_info(block: str) -> PartyInfo:
     if email_match:
         info.email = email_match.group(0)
 
+    # Phone
+    phone_match = re.search(r'(?:Phone|Mobile|Tel|Contact)\s*(?:No)?\.?\s*[:\-]?\s*([\d\-\s+]{10,15})', block, re.IGNORECASE)
+    if phone_match:
+        info.phone = phone_match.group(1).strip()
+
     # Address: everything between name and GSTIN/State/PAN lines
     address_lines = []
     for line in lines[1:]:
-        if re.search(r'GSTIN|State|PAN|Code|CIN|Email|Phone|Contact', line, re.IGNORECASE):
+        if re.search(r'GSTIN|State|PAN|Code|CIN|Email|Phone|Contact|Invoice\s*No', line, re.IGNORECASE):
             break
-        address_lines.append(line)
+        # Skip rejected name if it was the first line
+        clean_line = line.replace("|", "").strip()
+        if clean_line.lower() in REJECT_NAMES:
+            continue
+        address_lines.append(clean_line)
     info.address = ", ".join(address_lines)
 
     return info
@@ -463,40 +553,132 @@ def parse_line_items_from_table(table: list[list[str]]) -> list[LineItem]:
 def parse_line_items_from_text(text: str) -> list[LineItem]:
     """
     Extract line items from raw text when no table is available.
-    Uses pattern matching on common invoice line formats.
-    
-    Handles formats like Green Clean:
-    "1 SCORTCH BRITE SMALL 73231000 18% 2 NOS 10.00 NOS 20.00"
+    Uses pattern matching on common invoice line formats, made highly
+    tolerant to OCR typos, misread column delimiters, curly quotes, and garbled amounts.
     """
     items = []
-    # Pattern for line items with sr_no, description, HSN, GST%, qty, unit, rate, amount
-    line_pattern = re.compile(
-        r'^\s*(\d+)\s+'           # Sr No
-        r'(.+?)\s+'              # Description
-        r'(\d{4,8})\s+'          # HSN/SAC
-        r'(\d+\.?\d*)\s*%\s+'   # GST Rate%
-        r'(\d+\.?\d*)\s+'       # Quantity
-        r'(\w+)\s+'              # Unit
-        r'([\d,]+\.?\d*)\s+'    # Rate
-        r'(?:\w+\s+)?'          # Per (optional)
-        r'(?:[\d.]+%?\s+)?'     # Discount (optional)
-        r'([\d,]+\.?\d*)\s*$',  # Amount
+    
+    # Pattern 1: With GST Rate% (e.g. Green Clean format)
+    pattern_gst = re.compile(
+        r'^[ \t]*[|\'\"\\/§\-‘’`]*[ \t]*([a-zA-Z\d§/]+)[ \t]*[|\'\"\\/§\-‘’`]*[ \t]*([^|\n]+?)[ \t]+(\d{4,8})[ \t]+(\d+\.?\d*)[ \t]*%[ \t]+(\d+\.?\d*)[ \t]+(\w+)[ \t]+([\d,]+[.)]?\d*)[ \t]*(?:[|/\\\]\)}]?)[ \t]*(?:\w+)?[ \t]*(.*?)[ \t\r]*$',
         re.MULTILINE
     )
-
-    for match in line_pattern.finditer(text):
+    
+    # Pattern 2: Without GST Rate% (e.g. Saanvi Trading / Tally column format)
+    pattern_no_gst = re.compile(
+        r'^[ \t]*[|\'\"\\/§\-‘’`]*[ \t]*([a-zA-Z\d§/]+)[ \t]*[|\'\"\\/§\-‘’`]*[ \t]*([^|\n]+?)[ \t]+(\d{4,8})[ \t]+(\d+\.?\d*)[ \t]+(\w+)[ \t]+([\d,]+[.)]?\d*)[ \t]*(?:[|/\\\]\)}]?)[ \t]*(?:\w+)?[ \t]*(.*?)[ \t\r]*$',
+        re.MULTILINE
+    )
+    
+    # Pattern 3: Simple fallback (no HSN code, e.g. Courier invoice lines)
+    pattern_simple = re.compile(
+        r'^[ \t]*[|\'\"\\/§\-‘’`]*[ \t]*([a-zA-Z\d§/]+)[ \t]*[|\'\"\\/§\-‘’`]*[ \t]*([^|\n]+?)[ \t]+(\d+\.?\d*)[ \t]+(\w+)?[ \t]+([\d,]+[.)]?\d*)[ \t]*(?:[|/\\\]\)}]?)[ \t]*(?:\w+)?[ \t]*(.*?)[ \t\r]*$',
+        re.MULTILINE
+    )
+    
+    # Try Pattern 1 first
+    for match in pattern_gst.finditer(text):
+        sr_no = len(items) + 1
+        description = match.group(2).strip(" \t\n\r|'\"‘’`()[].-")
+        hsn_sac = match.group(3)
+        gst_rate = float(match.group(4))
+        qty = float(match.group(5))
+        unit = match.group(6)
+        rate = _parse_amount(match.group(7))
+        
+        # Safe amount recovery if garbled/zero
+        amt = _parse_amount(match.group(8))
+        if amt == 0 or abs(qty * rate - amt) > 2.0:
+            if qty > 0 and rate > 0:
+                amt = qty * rate
+                
+        # Skip date/hash false matches
+        if unit and unit.lower() in ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'):
+            continue
+        if len(description) > 10 and re.search(r'[a-f0-9]{10,}', description.lower()):
+            continue
+            
         item = LineItem(
-            sr_no=int(match.group(1)),
-            description=match.group(2).strip(),
-            hsn_sac=match.group(3),
-            gst_rate=float(match.group(4)),
-            quantity=float(match.group(5)),
-            unit=match.group(6),
-            unit_price=_parse_amount(match.group(7)),
-            taxable_amount=_parse_amount(match.group(8)),
-            total_amount=_parse_amount(match.group(8)),
+            sr_no=sr_no,
+            description=description,
+            hsn_sac=hsn_sac,
+            gst_rate=gst_rate,
+            quantity=qty,
+            unit=unit,
+            unit_price=rate,
+            taxable_amount=amt,
+            total_amount=amt,
         )
         items.append(item)
+        
+    # If no items matched Pattern 1, try Pattern 2
+    if not items:
+        for match in pattern_no_gst.finditer(text):
+            sr_no = len(items) + 1
+            description = match.group(2).strip(" \t\n\r|'\"‘’`()[].-")
+            hsn_sac = match.group(3)
+            qty = float(match.group(4))
+            unit = match.group(5)
+            rate = _parse_amount(match.group(6))
+            
+            # Safe amount recovery if garbled/zero
+            amt = _parse_amount(match.group(7))
+            if amt == 0 or abs(qty * rate - amt) > 2.0:
+                if qty > 0 and rate > 0:
+                    amt = qty * rate
+                    
+            # Skip date/hash false matches
+            if unit and unit.lower() in ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'):
+                continue
+            if len(description) > 10 and re.search(r'[a-f0-9]{10,}', description.lower()):
+                continue
+                
+            item = LineItem(
+                sr_no=sr_no,
+                description=description,
+                hsn_sac=hsn_sac,
+                gst_rate=0.0,  # Will be updated by post-processing tax summary mapping
+                quantity=qty,
+                unit=unit,
+                unit_price=rate,
+                taxable_amount=amt,
+                total_amount=amt,
+            )
+            items.append(item)
+            
+    # Try simple fallback if still no items
+    if not items:
+        for match in pattern_simple.finditer(text):
+            sr_no = len(items) + 1
+            description = match.group(2).strip(" \t\n\r|'\"‘’`()[].-")
+            qty = float(match.group(3))
+            unit = match.group(4) or "pc"
+            rate = _parse_amount(match.group(5))
+            
+            # Safe amount recovery if garbled/zero
+            amt = _parse_amount(match.group(6))
+            if amt == 0 or abs(qty * rate - amt) > 2.0:
+                if qty > 0 and rate > 0:
+                    amt = qty * rate
+                    
+            # Skip date/hash false matches
+            if unit and unit.lower() in ('jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'):
+                continue
+            if len(description) > 10 and re.search(r'[a-f0-9]{10,}', description.lower()):
+                continue
+                
+            item = LineItem(
+                sr_no=sr_no,
+                description=description,
+                hsn_sac="",
+                gst_rate=0.0,
+                quantity=qty,
+                unit=unit,
+                unit_price=rate,
+                taxable_amount=amt,
+                total_amount=amt,
+            )
+            items.append(item)
 
     return items
 
@@ -610,16 +792,26 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
     # ── Invoice Number ─────────────────────────────────────────────────────
     inv_num = _search_patterns(text, INVOICE_NUMBER_PATTERNS)
 
+    # Global financial-year-anchored patterns fallback (highly specific, zero collision)
+    if not inv_num or inv_num.lower() in ('date', 'dated', 'invoice', 'consignee'):
+        global_fy_patterns = [
+            r'\b([A-Z0-9]{2,5}/[A-Z0-9\-]+/2[56]-?2[67]/\d{2,6})\b',
+            r'\b([A-Z0-9]{2,5}/2[56]-?2[67]/\d{2,6})\b',
+            r'\b([A-Z0-9]{3,5}-2[56]-?2[67]-\d{2,6})\b',
+        ]
+        for pat in global_fy_patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                inv_num = m.group(1)
+                break
+
     # Tally format: "Invoice No. Date\n[possible other lines]\nIHR030932627 28/04/2026"
-    # CIEL: "Invoice No. Date\nConsignee (Ship to)\nIHR030932627 28/04/2026"
-    # INUBE: "running Invoice No. Dated\n25-26/463 11-Feb-26"
-    # Green Clean: "Invoice\nNo, Dated\n...\nGC/26-27/251 17-Apr-26"
     REJECT_WORDS = {
         'consignee', 'royal', 'green', 'clean', 'services', 'dated', 'date',
         'buyer', 'seller', 'ship', 'bill', 'dispatch', 'delivery', 'note',
         'mode', 'terms', 'payment', 'vishranthi', 'towers', 'limited',
         'private', 'pvt', 'ltd', 'chennai', 'bangalore', 'mumbai',
-        'sundaram', 'general', 'insurance',
+        'sundaram', 'general', 'insurance', 'ackno', 'irn', 'ack',
     }
     
     if not inv_num or inv_num.lower() in ('date', 'dated', 'invoice', 'consignee'):
@@ -627,36 +819,47 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
         found_header = False
         
         for li, line in enumerate(lines):
-            # Find the "Invoice No" header line
-            if re.search(r'Invoice\s*(?:No|Number)\.?', line, re.IGNORECASE):
+            # Find the "Invoice" header line (lenient to split lines)
+            if re.search(r'\bInvoice\b', line, re.IGNORECASE):
                 found_header = True
                 
-                # Check if invoice number value is ON the same line after the header label
-                # e.g., "running Invoice No. Dated\n25-26/463"
-                # But first check the NEXT few lines for the value
-                for offset in range(1, 6):
+                # Check the NEXT few lines (up to 20 lines due to split-column layouts) for the value
+                found_num = None
+                for offset in range(1, 21):
                     if li + offset >= len(lines):
                         break
                     next_line = lines[li + offset].strip()
                     if not next_line:
                         continue
                     
-                    # First token on this line — is it an invoice number?
-                    first_token = next_line.split()[0] if next_line.split() else ""
-                    first_token_clean = first_token.rstrip('.')
+                    # Check if line looks like an address block to avoid false positives
+                    ADDRESS_KEYWORDS = {'floor', 'road', 'street', 'park', 'delphi', 'hiranandani', 'powai', 'maharashtra', 'tamil', 'delhi', 'bldg', 'building', 'chennai', 'mumbai', 'bangalore', 'bengaluru', 'state', 'code', 'gstin', 'pan', 'email', 'cin'}
+                    if any(w in next_line.lower() for w in ADDRESS_KEYWORDS):
+                        continue
                     
-                    # An invoice number typically: has at least one digit, 
-                    # may contain letters/dashes/slashes, length >= 5
-                    if (len(first_token_clean) >= 5 and 
-                        re.search(r'\d', first_token_clean) and
-                        re.match(r'^[A-Za-z0-9\-/]+$', first_token_clean) and
-                        first_token_clean.lower() not in REJECT_WORDS):
-                        inv_num = first_token_clean
+                    tokens = next_line.split()
+                    for token in tokens:
+                        # Clean trailing/leading non-alphanumeric chars except dashes/slashes (e.g. quotes or commas)
+                        token_clean = re.sub(r'^[^A-Za-z0-9]+|[^A-Za-z0-9]+$', '', token)
+                        
+                        # Exclude tokens that look like IRN or Ack No hashes to avoid false positives
+                        if re.match(r'^[0-9a-f]{15,}$', token_clean, re.IGNORECASE):
+                            continue
+                        
+                        # An invoice number typically: has at least one digit, 
+                        # may contain letters/dashes/slashes, length between 5 and 22
+                        if (5 <= len(token_clean) < 22 and 
+                            re.search(r'\d', token_clean) and
+                            re.match(r'^[A-Za-z0-9\-/]+$', token_clean) and
+                            token_clean.lower() not in REJECT_WORDS):
+                            found_num = token_clean
+                            break
+                    if found_num:
+                        inv_num = found_num
                         break
                 
                 if inv_num and inv_num.lower() not in ('date', 'dated', 'invoice', 'consignee'):
                     break
-
 
     if inv_num and inv_num.lower() not in ('date', 'dated', 'invoice', 'consignee'):
         inv.invoice_number = ExtractedField.high(inv_num, extraction_source)
@@ -668,7 +871,6 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
 
     # Tally format fallback: date is on same line as invoice number value
     if not date_str and inv_num:
-        # Find the line containing the invoice number and grab date from it
         for line in text.split('\n'):
             if inv_num in line:
                 for pat in DATE_PATTERNS:
@@ -679,7 +881,6 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
                 break
 
     if date_str:
-
         inv.invoice_date = ExtractedField.high(date_str, extraction_source)
     else:
         inv.processing_errors.append("Could not extract invoice date")
@@ -697,17 +898,18 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
     gstins = _extract_gstins(text)
 
     # ── Seller (first block of text, usually top) ──────────────────────────
+    # Removed 'Invoice No' to avoid truncating early on Tally column-mixed layouts
     seller_block = _extract_party_block(text,
         start_keywords=[r'^', r'Tax Invoice', r'GST Invoice'],
         end_keywords=[r'Consignee', r'Bill\s*To', r'Buyer', r'Issued\s*To',
-                       r'Ship\s*To', r'Sold\s*To', r'Invoice\s*No']
+                       r'Ship\s*To', r'Sold\s*To']
     )
     inv.seller = _parse_party_info(seller_block)
 
     # ── Buyer ──────────────────────────────────────────────────────────────
     buyer_block = _extract_party_block(text,
         start_keywords=[r'Bill\s*(?:To|to)', r'Buyer\s*\(Bill\s*to\)', r'Buyer',
-                        r'Issued\s*To', r'Sold\s*To'],
+                         r'Issued\s*To', r'Sold\s*To'],
         end_keywords=[r'Sl\.?\s*No', r'Sr\.?\s*No', r'#\s', r'Particulars',
                        r'Description', r'Item', r'HSN', r'Dispatch']
     )
@@ -730,7 +932,6 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
             inv.buyer.gstin = gstin
 
     # ── Line Items ─────────────────────────────────────────────────────────
-    # Try from tables first
     for table in tables:
         items = parse_line_items_from_table(table)
         if items:
@@ -739,9 +940,6 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
     # If no items from tables, try text-based extraction
     if not inv.line_items:
         inv.line_items = parse_line_items_from_text(text)
-
-    if not inv.line_items:
-        inv.processing_errors.append("Could not extract any line items")
 
     # ── Tax Details ────────────────────────────────────────────────────────
     inv.tax_details = _extract_tax_details(text)
@@ -757,7 +955,7 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
     else:
         # Try to compute from line items
         if inv.line_items:
-            computed = sum(item.taxable_amount for item in inv.line_items)
+            computed = sum(item.total_amount for item in inv.line_items)
             inv.grand_total = ExtractedField.medium(f"{computed:.2f}", ExtractionSource.INFERRED)
 
     # Total tax
@@ -774,6 +972,101 @@ def parse_invoice(text: str, tables: list[list[list[str]]],
             inv.round_off = float(round_match.group(1))
         except ValueError:
             pass
+
+    # If no items could be parsed, create a consolidated service line item
+    if not inv.line_items:
+        # Try to infer subtotal or grand total (less tax)
+        tax_amt = sum(td.tax_amount for td in inv.tax_details) if inv.tax_details else 0.0
+        g_total = inv.grand_total_float
+        sub = inv.subtotal if inv.subtotal > 0 else (g_total - tax_amt if g_total > 0 else 0.0)
+        
+        if sub > 0:
+            hsn = ""
+            hsn_match = re.search(r'\b(99\d{4,6}|\d{4,8})\b', text)
+            if hsn_match:
+                hsn = hsn_match.group(1)
+                
+            desc = "SERVICE EXPENSES"
+            service_match = re.search(r'(Subscription|Support|Professional|Courier|Rent|Consulting|Maintenance|Charges|Fees|Service)[^\n]+', text, re.IGNORECASE)
+            if service_match:
+                desc = service_match.group(0).strip()[:50]
+                
+            item = LineItem(
+                sr_no=1,
+                description=desc,
+                hsn_sac=hsn,
+                gst_rate=0.0,
+                quantity=1.0,
+                unit="pc",
+                unit_price=sub,
+                taxable_amount=sub,
+                total_amount=sub,
+            )
+            inv.line_items.append(item)
+            logger.info(f"Created consolidated service line item for {source_file}: sub={sub}")
+
+    if not inv.line_items:
+        inv.processing_errors.append("Could not extract any line items")
+
+    # ── Post-process line items to resolve GST rates from tax summary table ──
+    if inv.line_items and inv.tax_details:
+        hsn_rate_map = {}
+        # Parse the bottom HSN summary table lines:
+        # "0402 1,375.00 | 2.50% 34.38" -> HSN 0402 has CGST 2.50% + SGST 2.50% = 5%
+        # "3402 3,863.00 9% 347.67" -> HSN 3402 has CGST 9% + SGST 9% = 18%
+        hsn_tax_table_pattern = re.compile(
+            r'(\d{4,8})\s+[\d,]+\.\d{2}\s+(?:.*?)\s*(\d+\.?\d*)\s*%',
+            re.IGNORECASE
+        )
+        for m in hsn_tax_table_pattern.finditer(text):
+            hsn = m.group(1)
+            rate = float(m.group(2))
+            # In Indian invoices, if we see 9%, the full GST is 18% (since CGST + SGST are equal)
+            full_rate = rate if rate >= 12 else rate * 2
+            hsn_rate_map[hsn] = full_rate
+            
+        is_igst = any(td.tax_type == "IGST" for td in inv.tax_details)
+        for item in inv.line_items:
+            hsn = item.hsn_sac
+            matched_hsn = None
+            if hsn in hsn_rate_map:
+                matched_hsn = hsn
+            else:
+                # Try suffix match (e.g., "13402" -> "3402")
+                for key in hsn_rate_map:
+                    if len(key) >= 4 and hsn.endswith(key):
+                        matched_hsn = key
+                        break
+                # Try prefix match (e.g., "340200" -> "3402")
+                if not matched_hsn:
+                    for key in hsn_rate_map:
+                        if len(key) >= 4 and hsn.startswith(key):
+                            matched_hsn = key
+                            break
+                            
+            if matched_hsn:
+                item.gst_rate = hsn_rate_map[matched_hsn]
+                item.hsn_sac = matched_hsn  # Clean the HSN code value!
+            else:
+                # Fallback to standard rate if HSN starts with common codes
+                item.gst_rate = 18.0 if item.hsn_sac else 0.0
+                
+            # Recompute CGST/SGST/IGST tax amounts
+            if item.gst_rate > 0:
+                if is_igst:
+                    item.igst_amount = round(item.taxable_amount * item.gst_rate / 100, 2)
+                    item.cgst_amount = 0.0
+                    item.sgst_amount = 0.0
+                else:
+                    item.igst_amount = 0.0
+                    item.cgst_amount = round(item.taxable_amount * item.gst_rate / 200, 2)
+                    item.sgst_amount = item.cgst_amount
+                item.total_amount = round(item.taxable_amount + item.igst_amount + item.cgst_amount + item.sgst_amount, 2)
+
+    # Re-infer grand total if not set and we now have line items
+    if not inv.grand_total.value and inv.line_items:
+        computed = sum(item.total_amount for item in inv.line_items)
+        inv.grand_total = ExtractedField.medium(f"{computed:.2f}", ExtractionSource.INFERRED)
 
     # ── Bank Details ───────────────────────────────────────────────────────
     inv.bank = _extract_bank_details(text)

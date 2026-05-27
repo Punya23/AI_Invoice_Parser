@@ -151,10 +151,10 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Vision AI Configuration")
     api_key_input = st.text_input(
-        "Gemini API Key",
+        "Vision AI Key",
         type="password",
         value=os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "",
-        help="Enter your Gemini API Key to activate Multimodal Vision AI parsing."
+        help="Enter your Vision AI Key to activate Multimodal Vision AI parsing."
     )
     
     if api_key_input:
